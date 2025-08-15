@@ -1,15 +1,21 @@
 "use client";
 
-import Image from 'next/image';
-import { useCallback, useMemo, useState } from 'react';
+import Image from "next/image";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "react-toastify";
 
-import { getCoinsByCategory } from '@/app/lib/coinApi';
-import { CategoryKey, COIN_CATEGORIES } from '@/app/types/coinCategories';
-import { useCryptoStore } from '@/store/useCryptoStore';
+import { getCoinsByCategory } from "@/app/lib/coinApi";
+import { CategoryKey, COIN_CATEGORIES } from "@/app/types/coinCategories";
+import { useCryptoStore } from "@/store/useCryptoStore";
 import {
-    createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-    getSortedRowModel, useReactTable
-} from '@tanstack/react-table';
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 
 import type Coin from "@/app/types/coin";
 const columnHelper = createColumnHelper<Coin>();
@@ -26,6 +32,7 @@ export default function CoinsTable() {
     setCoins,
     addToWatchlist,
     watchlist,
+    removeFromWatchlist,
   } = useCryptoStore();
 
   const [globalFilter, setGlobalFilter] = useState("");
@@ -38,7 +45,7 @@ export default function CoinsTable() {
 
       // Watchlist category
       if (category === "watchlist") {
-        setCoins(watchlist); // use Zustand state
+        setCoins(watchlist);
         return;
       }
 
@@ -82,6 +89,7 @@ export default function CoinsTable() {
       watchlist,
     ],
   );
+
   const columns = useMemo(
     () => [
       columnHelper.accessor("market_cap_rank", {
@@ -94,7 +102,6 @@ export default function CoinsTable() {
           </div>
         ),
         size: 60,
-        // Add a sorting function to ensure numerical sorting
         sortingFn: "alphanumeric",
       }),
       columnHelper.accessor("name", {
@@ -142,7 +149,6 @@ export default function CoinsTable() {
         header: "24h Change",
         cell: (info) => {
           const value = info.getValue();
-          // Check if value is a number before calling toFixed
           if (value === null || value === undefined) {
             return (
               <div className="text-center">
@@ -176,49 +182,76 @@ export default function CoinsTable() {
         ),
         size: 140,
       }),
-      // Watchlist column
       columnHelper.display({
         id: "watchlist",
         header: "Watchlist",
         cell: (info) => {
           const coin = info.row.original;
+          const isInWatchlist = watchlist.some((c) => c.id === coin.id);
+
           return (
             <div className="text-center">
               <button
                 onClick={() => {
-                  addToWatchlist(coin);
-                  alert(`${coin.name} added to your watchlist!`);
+                  if (isInWatchlist) {
+                    removeFromWatchlist(coin.id);
+                    if (currentCategory === "watchlist") {
+                      setCoins(watchlist.filter((c) => c.id !== coin.id));
+                    }
+                    // toast.error() is good for "removed" actions
+                    toast.error(`${coin.name} removed from your watchlist!`, {
+                      position: "bottom-right",
+                    });
+                  } else {
+                    addToWatchlist(coin);
+                    // toast.success() is great for "added" actions
+                    toast.success(`${coin.name} added to your watchlist!`, {
+                      position: "bottom-right",
+                    });
+                  }
                 }}
-                className="transform rounded-lg p-2 text-gray-400 transition-all duration-200 hover:scale-110 hover:bg-blue-50 hover:text-blue-600 active:scale-95 dark:hover:bg-blue-900/20"
-                title="Add to Watchlist"
-                aria-label={`Add ${coin.name} to watchlist`}
               >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  />
-                </svg>
+                {isInWatchlist ? (
+                  <svg
+                    className="h-5 w-5 text-red-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                )}
               </button>
             </div>
           );
         },
         size: 80,
       }),
-      // Portfolio column
       columnHelper.display({
         id: "portfolio",
         header: "Portfolio",
@@ -228,7 +261,6 @@ export default function CoinsTable() {
             <div className="text-center">
               <button
                 onClick={() => {
-                  // TODO: Add to portfolio logic
                   console.log("Add to portfolio:", coin.name);
                 }}
                 className="transform rounded-lg p-2 text-gray-400 transition-all duration-200 hover:scale-110 hover:bg-yellow-50 hover:text-yellow-600 active:scale-95 dark:hover:bg-yellow-900/20"
@@ -255,7 +287,7 @@ export default function CoinsTable() {
         size: 80,
       }),
     ],
-    [addToWatchlist],
+    [addToWatchlist, removeFromWatchlist, watchlist, currentCategory, setCoins],
   );
 
   const table = useReactTable({
@@ -283,22 +315,14 @@ export default function CoinsTable() {
     },
   });
 
-  if (!coins.length && !isLoading) {
+  if (!coins.length && !isLoading && currentCategory !== "watchlist") {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="text-center">
-          {currentCategory === "watchlist" ? (
-            <p className="text-gray-600 dark:text-gray-300">
-              Your watchlist is empty.
-            </p>
-          ) : (
-            <>
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-300">
-                Loading cryptocurrency data...
-              </p>
-            </>
-          )}
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">
+            Loading cryptocurrency data...
+          </p>
         </div>
       </div>
     );
@@ -306,7 +330,6 @@ export default function CoinsTable() {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      {/* Header with Title and Controls */}
       <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
@@ -317,14 +340,16 @@ export default function CoinsTable() {
               {COIN_CATEGORIES[currentCategory].description} •{" "}
               {table.getFilteredRowModel().rows.length} coins
             </p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Data of top 250 coins (CoinGecko free tier)
+            </p>
           </div>
 
-          {/* Search Input */}
           <div className="flex items-center space-x-4">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search coins..."
+                placeholder="Search from top 250 coin"
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 className="w-64 rounded-lg border border-gray-300 bg-white px-4 py-2 pr-4 pl-10 text-sm text-gray-900 placeholder-gray-500 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
@@ -348,7 +373,6 @@ export default function CoinsTable() {
           </div>
         </div>
 
-        {/* Category Filters - Enhanced Buttons with better dark mode */}
         <div className="mt-4 flex flex-wrap gap-3">
           {Object.entries(COIN_CATEGORIES).map(([key, category]) => (
             <button
@@ -374,7 +398,6 @@ export default function CoinsTable() {
         </div>
       </div>
 
-      {/* Loading Overlay */}
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/50 dark:bg-gray-900/50">
           <div className="text-center">
@@ -386,7 +409,6 @@ export default function CoinsTable() {
         </div>
       )}
 
-      {/* Table with mixed alignment - Coin column left, others center */}
       <div className="relative overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
@@ -422,42 +444,65 @@ export default function CoinsTable() {
               </tr>
             ))}
           </thead>
+
           <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className="cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-6 py-6 text-center text-gray-600 dark:text-gray-300"
+                >
+                  {currentCategory === "watchlist" && watchlist.length === 0
+                    ? "Your watchlist is empty."
+                    : globalFilter
+                      ? "The coin you searched is not in the top 250 coins."
+                      : null}
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination - Enhanced Buttons with better dark mode */}
       <div className="border-t border-gray-200 px-6 py-4 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-700 dark:text-gray-300">
-              Showing{" "}
-              {table.getState().pagination.pageIndex *
-                table.getState().pagination.pageSize +
-                1}{" "}
-              to{" "}
-              {Math.min(
-                (table.getState().pagination.pageIndex + 1) *
-                  table.getState().pagination.pageSize,
-                table.getFilteredRowModel().rows.length,
-              )}{" "}
-              of {table.getFilteredRowModel().rows.length} results
-            </span>
+            {table.getFilteredRowModel().rows.length > 0 ? (
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Showing{" "}
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}{" "}
+                to{" "}
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length,
+                )}{" "}
+                of {table.getFilteredRowModel().rows.length} results
+              </span>
+            ) : (
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Showing 0 results
+              </span>
+            )}
           </div>
-
           <div className="flex items-center space-x-2">
             <button
               onClick={() => table.setPageIndex(0)}
