@@ -1,10 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
 import { getCoinsByCategory } from "@/app/lib/coinApi";
+import { Coin } from "@/app/types/coin";
 import { CategoryKey, COIN_CATEGORIES } from "@/app/types/coinCategories";
 import { useCryptoStore } from "@/store/useCryptoStore";
 import {
@@ -17,7 +19,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import type Coin from "@/app/types/coin";
 const columnHelper = createColumnHelper<Coin>();
 
 export default function CoinsTable() {
@@ -36,7 +37,7 @@ export default function CoinsTable() {
   } = useCryptoStore();
 
   const [globalFilter, setGlobalFilter] = useState("");
-
+  const router = useRouter();
   const handleCategoryChange = useCallback(
     async (category: CategoryKey) => {
       if (category === currentCategory || isLoading) return;
@@ -192,7 +193,8 @@ export default function CoinsTable() {
           return (
             <div className="text-center">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (isInWatchlist) {
                     removeFromWatchlist(coin.id);
                     if (currentCategory === "watchlist") {
@@ -210,6 +212,7 @@ export default function CoinsTable() {
                     });
                   }
                 }}
+                className="cursor-pointer"
               >
                 {isInWatchlist ? (
                   <svg
@@ -263,7 +266,7 @@ export default function CoinsTable() {
                 onClick={() => {
                   console.log("Add to portfolio:", coin.name);
                 }}
-                className="transform rounded-lg p-2 text-gray-400 transition-all duration-200 hover:scale-110 hover:bg-yellow-50 hover:text-yellow-600 active:scale-95 dark:hover:bg-yellow-900/20"
+                className="transform cursor-pointer rounded-lg p-2 text-gray-400 transition-all duration-200 hover:scale-110 hover:bg-yellow-50 hover:text-yellow-600 active:scale-95 dark:hover:bg-yellow-900/20"
                 title="Add to Portfolio"
                 aria-label={`Add ${coin.name} to portfolio`}
               >
@@ -341,7 +344,7 @@ export default function CoinsTable() {
               {table.getFilteredRowModel().rows.length} coins
             </p>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              Data of top 250 coins (CoinGecko free tier)
+              Data of top 250 coins in each category (CoinGecko free tier)
             </p>
           </div>
 
@@ -397,7 +400,6 @@ export default function CoinsTable() {
           ))}
         </div>
       </div>
-
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/50 dark:bg-gray-900/50">
           <div className="text-center">
@@ -408,7 +410,6 @@ export default function CoinsTable() {
           </div>
         </div>
       )}
-
       <div className="relative overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
@@ -450,6 +451,7 @@ export default function CoinsTable() {
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
+                  onClick={() => router.push(`/coins/${row.original.id}`)}
                   className="cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -479,8 +481,7 @@ export default function CoinsTable() {
           </tbody>
         </table>
       </div>
-
-      <div className="border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+      {/* <div className="border-t border-gray-200 px-6 py-4 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {table.getFilteredRowModel().rows.length > 0 ? (
@@ -521,6 +522,81 @@ export default function CoinsTable() {
             <span className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
               Page {table.getState().pagination.pageIndex + 1} of{" "}
               {table.getPageCount()}
+            </span>
+            <button
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="transform rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:scale-105 hover:bg-gray-50 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              className="transform rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:scale-105 hover:bg-gray-50 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      </div> */}
+
+      <div className="border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+        {/* Flexbox for spacing and alignment */}
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row sm:space-x-2">
+          {/* Page info and results count */}
+          <div className="flex-grow text-center sm:text-left">
+            {table.getFilteredRowModel().rows.length > 0 ? (
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Showing{" "}
+                <span className="font-medium">
+                  {table.getState().pagination.pageIndex *
+                    table.getState().pagination.pageSize +
+                    1}
+                </span>{" "}
+                to{" "}
+                <span className="font-medium">
+                  {Math.min(
+                    (table.getState().pagination.pageIndex + 1) *
+                      table.getState().pagination.pageSize,
+                    table.getFilteredRowModel().rows.length,
+                  )}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium">
+                  {table.getFilteredRowModel().rows.length}
+                </span>{" "}
+                results
+              </span>
+            ) : (
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Showing 0 results
+              </span>
+            )}
+          </div>
+
+          {/* Buttons and page number */}
+          <div className="flex w-full items-center justify-center space-x-2 sm:w-auto">
+            <button
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              className="transform rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:scale-105 hover:bg-gray-50 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              First
+            </button>
+            <button
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="transform rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:scale-105 hover:bg-gray-50 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Previous
+            </button>
+            <span className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              Page{" "}
+              <span className="font-medium">
+                {table.getState().pagination.pageIndex + 1}
+              </span>{" "}
+              of <span className="font-medium">{table.getPageCount()}</span>
             </span>
             <button
               onClick={() => table.nextPage()}
