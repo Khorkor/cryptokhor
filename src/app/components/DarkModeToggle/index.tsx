@@ -1,69 +1,76 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+
+function setThemeCookie(theme: "dark" | "light") {
+  // 1 year in seconds
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie =
+    "cryptokhor-theme=" +
+    theme +
+    "; path=/; max-age=" +
+    maxAge +
+    "; SameSite=Lax";
+}
 
 export default function DarkModeToggle() {
   const [isDark, setIsDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
-    
-    // Check for saved theme preference - default to LIGHT mode
-    const savedTheme = localStorage.getItem('cryptokhor-theme');
-    
-    // Only use dark mode if explicitly saved as 'dark'
-    const shouldBeDark = savedTheme === 'dark';
-    
-    setIsDark(shouldBeDark);
-    
-    // Apply the theme
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    try {
+      const saved = localStorage.getItem("cryptokhor-theme");
+      if (saved) {
+        setIsDark(saved === "dark");
+        // ensure html class matches (in case server-side set different)
+        if (saved === "dark") document.documentElement.classList.add("dark");
+        else document.documentElement.classList.remove("dark");
+      } else {
+        // fallback to whatever html currently has (server or inline script set it)
+        setIsDark(document.documentElement.classList.contains("dark"));
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      // ignore storage errors
+      setIsDark(document.documentElement.classList.contains("dark"));
     }
   }, []);
 
   const toggleDarkMode = () => {
-    const newDarkMode = !isDark;
-    
-    setIsDark(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('cryptokhor-theme', 'dark');
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add("dark");
+      try {
+        localStorage.setItem("cryptokhor-theme", "dark");
+      } catch {}
+      setThemeCookie("dark");
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('cryptokhor-theme', 'light');
+      document.documentElement.classList.remove("dark");
+      try {
+        localStorage.setItem("cryptokhor-theme", "light");
+      } catch {}
+      setThemeCookie("light");
     }
   };
 
-  // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {
-    return (
-      <div className="p-2 rounded-lg w-9 h-9 bg-gray-100 animate-pulse"></div>
-    );
+    return <div className="h-9 w-9 animate-pulse rounded-lg bg-gray-100 p-2" />;
   }
 
   return (
     <button
       onClick={toggleDarkMode}
-      className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-sm hover:shadow-md border border-transparent hover:border-gray-200"
-      aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      className="transform rounded-lg border border-transparent p-2 text-gray-500 shadow-sm transition-all duration-200 hover:scale-110 hover:border-gray-200 hover:bg-gray-100 hover:shadow-md active:scale-95"
+      aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
+      title={`Switch to ${isDark ? "light" : "dark"} mode`}
     >
       {isDark ? (
-        // Sun icon - currently in dark mode, click to go light
-        <svg className="h-5 w-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
-        </svg>
+        <Sun className="h-5 w-5 text-yellow-500" />
       ) : (
-        // Moon icon - currently in light mode, click to go dark
-        <svg className="h-5 w-5 text-slate-700" fill="currentColor" viewBox="0 0 24 24">
-          <path fillRule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clipRule="evenodd" />
-        </svg>
+        <Moon className="h-5 w-5 text-slate-700" />
       )}
     </button>
   );
