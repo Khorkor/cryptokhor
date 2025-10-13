@@ -1,23 +1,17 @@
 "use client";
 
 import {
-  CategoryScale,
-  Chart as ChartJS,
-  Legend,
-  LinearScale,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-} from "chart.js";
-import Image from "next/image";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Line } from "react-chartjs-2";
+    CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip
+} from 'chart.js';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-import { TableLoadingOverlay } from "@/app/components/CoinsTable/LoadingOverlay";
-import { Coin } from "@/app/types/coin";
-import { useCryptoStore } from "@/store/useCryptoStore";
+import { TableLoadingOverlay } from '@/app/components/CoinsTable/LoadingOverlay';
+import PriceChart from '@/app/components/PriceChart';
+import { Coin } from '@/app/types/coin';
+import { useCryptoStore } from '@/store/useCryptoStore';
 
 ChartJS.register(
   CategoryScale,
@@ -81,101 +75,75 @@ const DetailsPage = () => {
   }, [coinId, coins]);
 
   const generateChart = (coinData: Coin) => {
-    const prices: number[] = [];
-    const labels: string[] = [];
-    const now = Date.now();
-    for (let i = 23; i >= 0; i--) {
-      const time = new Date(now - i * 60 * 60 * 1000);
-      labels.push(`${time.getHours()}:00`);
-      prices.push(
-        +(coinData.current_price * (0.95 + Math.random() * 0.1)).toFixed(2),
-      );
-    }
-    setChartData(prices);
-    setChartLabels(labels);
+    fetch(
+      `https://api.coingecko.com/api/v3/coins/${coinData.id}/market_chart?vs_currency=usd&days=1`,
+    )
+      .then((res) => res.json())
+      .then((data: { prices: [number, number][] }) => {
+        let prices: number[] = [];
+        let labels: string[] = [];
+
+        if (data?.prices?.length > 0) {
+          prices = data.prices.map(([, price]) => price);
+          labels = data.prices.map(([timestamp]) =>
+            new Date(timestamp).toLocaleTimeString([], {
+              hour: "numeric",
+              hour12: true,
+            }),
+          );
+        } else {
+          // fallback
+          const now = new Date();
+          const basePrice = coinData.current_price;
+          const priceChange = coinData.price_change_percentage_24h || 0;
+          const startPrice = basePrice / (1 + priceChange / 100);
+
+          for (let i = 24; i >= 0; i--) {
+            const time = new Date(now.getTime() - i * 60 * 60 * 1000);
+            labels.push(
+              time.toLocaleTimeString([], { hour: "numeric", hour12: true }),
+            );
+
+            const progress = (24 - i) / 24;
+            const estimatedPrice =
+              startPrice + (basePrice - startPrice) * progress;
+            prices.push(
+              +(estimatedPrice * (0.99 + Math.random() * 0.02)).toFixed(2),
+            );
+          }
+        }
+
+        // Replace last price with currentPrice for accuracy
+        if (prices.length > 0) {
+          prices[prices.length - 1] = coinData.current_price;
+        }
+
+        setChartData(prices);
+        setChartLabels(labels);
+      })
+      .catch(() => {
+        // fallback if API fails completely
+        const now = Date.now();
+        const prices: number[] = [];
+        const labels: string[] = [];
+        for (let i = 23; i >= 0; i--) {
+          const time = new Date(now - i * 60 * 60 * 1000);
+          labels.push(
+            time.toLocaleTimeString([], { hour: "numeric", hour12: true }),
+          );
+          prices.push(coinData.current_price * (0.95 + Math.random() * 0.1));
+        }
+        setChartData(prices);
+        setChartLabels(labels);
+      });
   };
 
   if (loading || !coin) return <TableLoadingOverlay currentCategory="all" />;
 
-  const data = {
-    labels: chartLabels,
-    datasets: [
-      {
-        label: `${coin.name} Price (USD)`,
-        data: chartData,
-        borderColor: "#4ade80",
-        backgroundColor: "rgba(74, 222, 128, 0.2)",
-        tension: 0.3,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: {
-        ticks: { color: isDarkMode ? "#9ca3af" : "#6b7280" },
-        grid: {
-          color: isDarkMode
-            ? "rgba(107, 114, 128, 0.2)"
-            : "rgba(229, 231, 235, 0.6)",
-          borderColor: isDarkMode ? "#374151" : "#d1d5db",
-        },
-      },
-      y: {
-        ticks: {
-          color: isDarkMode ? "#9ca3af" : "#6b7280",
-          callback: (value: string | number) =>
-            `$${Number(value).toLocaleString()}`,
-        },
-        grid: {
-          color: isDarkMode
-            ? "rgba(107, 114, 128, 0.2)"
-            : "rgba(229, 231, 235, 0.6)",
-          borderColor: isDarkMode ? "#374151" : "#d1d5db",
-        },
-      },
-    },
-    plugins: {
-      legend: {
-        position: "top" as const,
-        labels: { color: isDarkMode ? "#e5e7eb" : "#111827" },
-      },
-      title: {
-        display: true,
-        text: "Last 24h Price Chart",
-        color: isDarkMode ? "#f9fafb" : "#111827",
-      },
-      tooltip: {
-        backgroundColor: isDarkMode
-          ? "rgba(31, 41, 55, 0.8)"
-          : "rgba(255, 255, 255, 0.8)",
-        titleColor: isDarkMode ? "#f9fafb" : "#111827",
-        bodyColor: isDarkMode ? "#d1d5db" : "#4b5563",
-        callbacks: {
-          label: (context: {
-            dataset: { label?: string };
-            parsed: { y: number };
-          }) => {
-            let label = context.dataset.label ?? "";
-            if (label) label += ": ";
-            label += new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: "USD",
-              maximumFractionDigits: 6,
-            }).format(context.parsed.y);
-            return label;
-          },
-        },
-      },
-    },
-  };
-
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm md:flex md:max-h-[80vh] md:items-center md:overflow-hidden dark:border-gray-700 dark:bg-gray-900">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-none border-0 bg-white p-0 shadow-sm md:flex md:rounded-lg md:border md:p-6 dark:border-gray-700 dark:bg-gray-900">
       <div className="grid h-full w-full grid-cols-1 gap-6 md:grid-cols-[1fr_2fr]">
-        {/* Left info column */}
+        {/* Left Info */}
         <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center justify-between border-b border-gray-200 pb-3 dark:border-gray-700">
             <div className="flex items-center space-x-4">
@@ -204,7 +172,11 @@ const DetailsPage = () => {
                 })}
               </p>
               <p
-                className={`text-xs md:text-sm ${coin.price_change_percentage_24h >= 0 ? "text-green-500" : "text-red-500"}`}
+                className={`text-xs md:text-sm ${
+                  coin.price_change_percentage_24h >= 0
+                    ? "text-green-500"
+                    : "text-red-500"
+                }`}
               >
                 {coin.price_change_percentage_24h?.toFixed(2)}%
               </p>
@@ -212,24 +184,35 @@ const DetailsPage = () => {
           </div>
 
           <div className="mt-3 space-y-2 overflow-y-auto text-sm">
-            {/* Key metrics + supply */}
             {[
               {
                 label: "Market Cap",
-                value: `$${coin.market_cap.toLocaleString()}`,
+                value: `$${coin.market_cap?.toLocaleString() ?? "N/A"}`,
               },
               {
                 label: "24h Volume",
-                value: `$${coin.total_volume.toLocaleString()}`,
+                value: `$${coin.total_volume?.toLocaleString() ?? "N/A"}`,
               },
-              { label: "Market Cap Rank", value: `#${coin.market_cap_rank}` },
+              {
+                label: "Market Cap Rank",
+                value: `#${coin.market_cap_rank ?? "N/A"}`,
+              },
               {
                 label: "ATH",
                 value: `$${coin.ath?.toLocaleString() ?? "N/A"}`,
               },
-              { label: "Circulating Supply", value: coin.circulating_supply },
-              { label: "Total Supply", value: coin.total_supply },
-              { label: "Max Supply", value: coin.max_supply },
+              {
+                label: "Circulating Supply",
+                value: coin.circulating_supply?.toLocaleString() ?? "N/A",
+              },
+              {
+                label: "Total Supply",
+                value: coin.total_supply?.toLocaleString() ?? "N/A",
+              },
+              {
+                label: "Max Supply",
+                value: coin.max_supply?.toLocaleString() ?? "N/A",
+              },
             ].map((metric) => (
               <div
                 key={metric.label}
@@ -239,19 +222,25 @@ const DetailsPage = () => {
                   {metric.label}
                 </p>
                 <p className="mt-1 text-sm font-bold text-gray-900 dark:text-white">
-                  {metric.value?.toLocaleString() ?? "N/A"}
+                  {metric.value}
                 </p>
               </div>
             ))}
+            <Link
+              href="/"
+              className="inline-block rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              ← Back to Markets
+            </Link>
           </div>
         </div>
 
-        {/* Right chart column */}
-        <div className="flex items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="h-[40vh] w-full md:h-full">
-            <Line data={data} options={options} />
-          </div>
-        </div>
+        {/* Right Chart */}
+        <PriceChart
+          coinId={coin.id}
+          currentPrice={coin.current_price}
+          isDarkMode={isDarkMode}
+        />
       </div>
     </div>
   );

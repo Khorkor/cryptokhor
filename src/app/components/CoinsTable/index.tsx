@@ -1,31 +1,24 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useRouter } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 
-import { CategoryFilter } from "@/app/components/CoinsTable/CategoryFilter";
-import { CoinCell } from "@/app/components/CoinsTable/CoinCell";
-import { TableLoadingOverlay } from "@/app/components/CoinsTable/LoadingOverlay";
-import { PortfolioButton } from "@/app/components/CoinsTable/PortfolioButton";
-import { PriceChangeCell } from "@/app/components/CoinsTable/PriceChangeCell";
-import { SearchBar } from "@/app/components/CoinsTable/SearchBar";
-import { TableEmptyState } from "@/app/components/CoinsTable/TableEmptyState";
-import { WatchlistButton } from "@/app/components/CoinsTable/WatchlistButton";
-import { Pagination } from "@/app/components/Pagination";
-import { getCoinsByCategory } from "@/app/lib/coinApi";
-import { Coin } from "@/app/types/coin";
-import { CategoryKey, COIN_CATEGORIES } from "@/app/types/coinCategories";
-import { useCryptoStore } from "@/store/useCryptoStore";
+import { CategoryFilter } from '@/app/components/CoinsTable/CategoryFilter';
+import { CoinCell } from '@/app/components/CoinsTable/CoinCell';
+import { TableLoadingOverlay } from '@/app/components/CoinsTable/LoadingOverlay';
+import { PriceChangeCell } from '@/app/components/CoinsTable/PriceChangeCell';
+import { SearchBar } from '@/app/components/CoinsTable/SearchBar';
+import { TableEmptyState } from '@/app/components/CoinsTable/TableEmptyState';
+import { WatchlistButton } from '@/app/components/CoinsTable/WatchlistButton';
+import { Pagination } from '@/app/components/Pagination';
+import { getCoinsByCategory } from '@/app/lib/coinApi';
+import { Coin } from '@/app/types/coin';
+import { CategoryKey, COIN_CATEGORIES } from '@/app/types/coinCategories';
+import { useCryptoStore } from '@/store/useCryptoStore';
 import {
-  createColumnHelper,
-  FilterFn,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+    createColumnHelper, FilterFn, flexRender, getCoreRowModel, getFilteredRowModel,
+    getPaginationRowModel, getSortedRowModel, useReactTable
+} from '@tanstack/react-table';
 
 const columnHelper = createColumnHelper<Coin>();
 
@@ -159,12 +152,6 @@ export default function CoinsTable() {
         cell: (info) => <WatchlistButton coin={info.row.original} />,
         size: 80,
       }),
-      columnHelper.display({
-        id: "portfolio",
-        header: "Portfolio",
-        cell: (info) => <PortfolioButton coin={info.row.original} />,
-        size: 80,
-      }),
     ],
     [],
   );
@@ -223,12 +210,17 @@ export default function CoinsTable() {
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               Data of top 250 coins in each category (CoinGecko free tier)
             </p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Manual page refresh required for latest data due to API rate
+              limits • Updated: {new Date().toLocaleTimeString()}
+            </p>
           </div>
 
           <div className="flex items-center space-x-4">
             <SearchBar
               globalFilter={globalFilter}
               setGlobalFilter={setGlobalFilter}
+              currentCategory={currentCategory}
             />
           </div>
         </div>

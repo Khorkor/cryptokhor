@@ -24,7 +24,7 @@ export default function Navbar() {
           {/* Desktop Navigation */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-2">
-              <Link
+              {/* <Link
                 href="/"
                 className="transform rounded-lg px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition-all duration-200 hover:scale-105 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md dark:text-gray-100 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
               >
@@ -35,7 +35,7 @@ export default function Navbar() {
                 className="transform rounded-lg px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition-all duration-200 hover:scale-105 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md dark:text-gray-100 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
               >
                 Portfolio
-              </Link>
+              </Link> */}
             </div>
           </div>
 
@@ -45,7 +45,7 @@ export default function Navbar() {
             <DarkModeToggle />
 
             {/* Mobile menu button */}
-            <div className="md:hidden">
+            {/* <div className="md:hidden">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="inline-flex transform items-center justify-center rounded-lg p-2 text-gray-400 transition-all duration-200 hover:scale-105 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-800"
@@ -73,12 +73,12 @@ export default function Navbar() {
                   )}
                 </svg>
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
 
         {/* Mobile Navigation Menu */}
-        {isMenuOpen && (
+        {/* {isMenuOpen && (
           <div className="md:hidden">
             <div className="space-y-1 border-t border-gray-200 px-2 pt-2 pb-3 sm:px-3 dark:border-gray-700">
               <Link
@@ -100,7 +100,7 @@ export default function Navbar() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </nav>
   );
