@@ -1,10 +1,9 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 function setThemeCookie(theme: "dark" | "light") {
-  // 1 year in seconds
   const maxAge = 60 * 60 * 24 * 365;
   document.cookie =
     "cryptokhor-theme=" +

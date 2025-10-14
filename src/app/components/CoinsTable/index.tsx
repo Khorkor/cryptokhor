@@ -22,7 +22,6 @@ import {
 
 const columnHelper = createColumnHelper<Coin>();
 
-// 👈 Custom global filter function
 const coinSearchFilter: FilterFn<Coin> = (row, columnId, filterValue) => {
   const name = row.original.name?.toLowerCase() || "";
   const symbol = row.original.symbol?.toLowerCase() || "";
@@ -164,7 +163,7 @@ export default function CoinsTable() {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     // Use the custom fuzzy filter function for global search
-    globalFilterFn: coinSearchFilter, // 👈 Updated here
+    globalFilterFn: coinSearchFilter,
     state: {
       globalFilter,
     },

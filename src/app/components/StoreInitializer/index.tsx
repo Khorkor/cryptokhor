@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect } from 'react';
+
+import { Coin } from '@/app/types/coin';
 import { useCryptoStore } from '@/store/useCryptoStore';
-import type Coin from "@/app/types/coin";
 
 interface StoreInitializerProps {
   initialCoins: Coin[];
 }
 
-export default function StoreInitializer({ initialCoins }: StoreInitializerProps) {
+export default function StoreInitializer({
+  initialCoins,
+}: StoreInitializerProps) {
   const { initializeCoins, isInitialized } = useCryptoStore();
 
   useEffect(() => {
@@ -17,5 +20,5 @@ export default function StoreInitializer({ initialCoins }: StoreInitializerProps
     }
   }, [initialCoins, initializeCoins, isInitialized]);
 
-  return null; // This component doesn't render anything
+  return null;
 }

@@ -1,8 +1,8 @@
-import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { Coin } from "@/app/types/coin";
-import { CategoryKey } from "@/app/types/coinCategories";
+import { Coin } from '@/app/types/coin';
+import { CategoryKey } from '@/app/types/coinCategories';
 
 interface CryptoState {
   coins: Coin[];
@@ -11,7 +11,6 @@ interface CryptoState {
   currentCategory: CategoryKey;
   categoryCoins: Record<CategoryKey, Coin[]>;
   watchlist: Coin[];
-  portfolio: Coin[];
 
   // Coins / categories
   setCoins: (newCoins: Coin[]) => void;
@@ -23,10 +22,6 @@ interface CryptoState {
   // Watchlist
   addToWatchlist: (coin: Coin) => void;
   removeFromWatchlist: (coinId: string) => void;
-
-  // Portfolio
-  addToPortfolio: (coin: Coin) => void;
-  removeFromPortfolio: (coinId: string) => void;
 
   // Update coin details (for details page)
   updateCoinDetails: (coinId: string, details: Partial<Coin>) => void;
@@ -41,7 +36,6 @@ export const useCryptoStore = create<CryptoState>()(
       currentCategory: "all",
       categoryCoins: {} as Record<CategoryKey, Coin[]>,
       watchlist: [],
-      portfolio: [],
 
       setCoins: (newCoins) => set({ coins: newCoins }),
       initializeCoins: (initialCoins) =>
@@ -69,17 +63,6 @@ export const useCryptoStore = create<CryptoState>()(
           watchlist: state.watchlist.filter((c) => c.id !== coinId),
         })),
 
-      addToPortfolio: (coin) =>
-        set((state) => ({
-          portfolio: state.portfolio.some((c) => c.id === coin.id)
-            ? state.portfolio
-            : [...state.portfolio, coin],
-        })),
-      removeFromPortfolio: (coinId) =>
-        set((state) => ({
-          portfolio: state.portfolio.filter((c) => c.id !== coinId),
-        })),
-
       updateCoinDetails: (coinId, details) =>
         set((state) => ({
           coins: state.coins.map((c) =>
@@ -98,7 +81,6 @@ export const useCryptoStore = create<CryptoState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         watchlist: state.watchlist,
-        portfolio: state.portfolio,
       }),
     },
   ),

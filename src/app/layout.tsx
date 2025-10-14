@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import "./globals.css";
-import "react-toastify/dist/ReactToastify.css";
+import './globals.css';
+import 'react-toastify/dist/ReactToastify.css';
 
-import { Geist, Geist_Mono } from "next/font/google";
-import { cookies } from "next/headers"; // server-only
-import Script from "next/script";
-import { ToastContainer } from "react-toastify";
+import { Geist, Geist_Mono } from 'next/font/google';
+import { cookies } from 'next/headers'; // server-only
+import Script from 'next/script';
+import { ToastContainer } from 'react-toastify';
 
-import Navbar from "@/app/components/Navbar";
+import Navbar from '@/app/components/Navbar';
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -18,7 +18,25 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CryptoKhor - Crypto Portfolio Tracker",
   description:
-    "Track your cryptocurrency portfolio with real-time prices and market data",
+    "Track your cryptocurrency portfolio with real-time prices and market data. Built with Next.js 15, React, and TypeScript.",
+  keywords: [
+    "crypto tracker",
+    "cryptocurrency portfolio",
+    "next.js 15",
+    "react",
+    "typescript",
+    "crypto prices",
+    "coin market data",
+    "cryptocurrency app",
+    "frontend developer project",
+  ],
+  openGraph: {
+    title: "CryptoKhor - Modern Cryptocurrency Market Explorer",
+    description:
+      "Explore top 250 cryptocurrencies with interactive charts, filters, and dark mode — built using Next.js 15, Zustand, and TypeScript.",
+    siteName: "CryptoKhor",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({
