@@ -1,7 +1,10 @@
 "use client";
 
+import 'react-toastify/dist/ReactToastify.css';
+
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
 
 import { CategoryFilter } from '@/app/components/CoinsTable/CategoryFilter';
 import { CoinCell } from '@/app/components/CoinsTable/CoinCell';
@@ -41,6 +44,7 @@ export default function CoinsTable() {
     setCategoryCoins,
     setCoins,
     watchlist,
+    lastTableRefresh,
   } = useCryptoStore();
 
   const [globalFilter, setGlobalFilter] = useState("");
@@ -59,13 +63,17 @@ export default function CoinsTable() {
       }
 
       // Already loaded category
-      if (categoryCoins[category]) {
+      if (categoryCoins[category] && categoryCoins[category].length > 0) {
         setCoins(categoryCoins[category]);
         return;
       }
 
       // "all" category
-      if (category === "all" && categoryCoins.all) {
+      if (
+        category === "all" &&
+        categoryCoins.all &&
+        categoryCoins.all.length > 0
+      ) {
         setCoins(categoryCoins.all);
         return;
       }
@@ -77,11 +85,27 @@ export default function CoinsTable() {
           const categoryData = await getCoinsByCategory(
             COIN_CATEGORIES[category].apiCategory!,
           );
-          setCategoryCoins(category, categoryData);
-          setCoins(categoryData);
+          // Only update if we got new data from API
+          if (categoryData && categoryData.length > 0) {
+            setCategoryCoins(category, categoryData);
+            setCoins(categoryData);
+          } else {
+            // If no data, use existing category data if available
+            const existingData = categoryCoins[category] || [];
+            if (existingData.length > 0) {
+              setCoins(existingData);
+            }
+          }
         } catch (error) {
           console.error(`Failed to fetch ${category} coins:`, error);
-          alert("Failed to load data. Please wait a moment and try again.");
+          // Use existing category data if available
+          const existingData = categoryCoins[category] || [];
+          if (existingData.length > 0) {
+            setCoins(existingData);
+          }
+          toast.error("Using cached data. Please try again later.", {
+            position: "bottom-right",
+          });
         } finally {
           setLoading(false);
         }
@@ -195,110 +219,114 @@ export default function CoinsTable() {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Cryptocurrency Markets
-            </h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              {COIN_CATEGORIES[currentCategory].description} •{" "}
-              {table.getFilteredRowModel().rows.length} coins
-            </p>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              Data of top 250 coins in each category (CoinGecko free tier)
-            </p>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              Manual page refresh required for latest data due to API rate
-              limits • Updated: {new Date().toLocaleTimeString()}
-            </p>
+    <>
+      <ToastContainer />
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Cryptocurrency Markets
+              </h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                {COIN_CATEGORIES[currentCategory].description} •{" "}
+                {table.getFilteredRowModel().rows.length} coins
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                Data of top 250 coins in each category (CoinGecko free tier)
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                Manual page refresh required for latest data due to API rate
+                limits • Updated:{" "}
+                {new Date(lastTableRefresh).toLocaleTimeString()}
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <SearchBar
+                globalFilter={globalFilter}
+                setGlobalFilter={setGlobalFilter}
+                currentCategory={currentCategory}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <SearchBar
-              globalFilter={globalFilter}
-              setGlobalFilter={setGlobalFilter}
-              currentCategory={currentCategory}
-            />
-          </div>
+          <CategoryFilter
+            currentCategory={currentCategory}
+            isLoading={isLoading}
+            onCategoryChange={handleCategoryChange}
+          />
         </div>
-
-        <CategoryFilter
-          currentCategory={currentCategory}
-          isLoading={isLoading}
-          onCategoryChange={handleCategoryChange}
-        />
-      </div>
-      {isLoading && <TableLoadingOverlay currentCategory={currentCategory} />}
-      <div className="relative overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={`cursor-pointer px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 ${
-                      header.id === "name" ? "text-left" : "text-center"
-                    }`}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    <div
-                      className={`flex items-center space-x-1 ${
-                        header.id === "name"
-                          ? "justify-start"
-                          : "justify-center"
+        {isLoading && <TableLoadingOverlay currentCategory={currentCategory} />}
+        <div className="relative overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className={`cursor-pointer px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 ${
+                        header.id === "name" ? "text-left" : "text-center"
                       }`}
+                      onClick={header.column.getToggleSortingHandler()}
                     >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                      {header.column.getIsSorted() && (
-                        <span className="text-blue-600 dark:text-blue-400">
-                          {header.column.getIsSorted() === "desc" ? "↓" : "↑"}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-
-          <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  onClick={() => router.push(`/coins/${row.original.id}`)}
-                  className="cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </td>
+                      <div
+                        className={`flex items-center space-x-1 ${
+                          header.id === "name"
+                            ? "justify-start"
+                            : "justify-center"
+                        }`}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                        {header.column.getIsSorted() && (
+                          <span className="text-blue-600 dark:text-blue-400">
+                            {header.column.getIsSorted() === "desc" ? "↓" : "↑"}
+                          </span>
+                        )}
+                      </div>
+                    </th>
                   ))}
                 </tr>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={columns.length}
-                currentCategory={currentCategory}
-                watchlist={watchlist}
-                globalFilter={globalFilter}
-              />
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </thead>
 
-      {/* Pagination */}
-      <Pagination table={table} />
-    </div>
+            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+              {table.getRowModel().rows.length > 0 ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => router.push(`/coins/${row.original.id}`)}
+                    className="cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <TableEmptyState
+                  colSpan={columns.length}
+                  currentCategory={currentCategory}
+                  watchlist={watchlist}
+                  globalFilter={globalFilter}
+                />
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <Pagination table={table} />
+      </div>
+    </>
   );
 }

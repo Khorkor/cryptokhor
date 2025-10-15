@@ -36,75 +36,87 @@ const PriceChart = ({
   currency = "usd",
 }: PriceChartProps) => {
   const [chartData, setChartData] = useState<ChartData<"line"> | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [isRefreshCooldown, setIsRefreshCooldown] = useState(false);
 
-  useEffect(() => {
-    const fetchChartData = async () => {
-      try {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${currency}&days=1`,
-        );
-        const data: MarketChartResponse = await res.json();
+  const fetchChartData = async () => {
+    try {
+      setIsRateLimited(false);
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${currency}&days=1`,
+      );
 
-        if (data?.prices?.length > 0) {
-          // Limit chart points to 1 per hour
-          const hourlyMap = new Map<string, number>();
-          data.prices.forEach(([timestamp, price]) => {
-            const date = new Date(timestamp);
-            const hour = date.getHours();
-            hourlyMap.set(hour.toString(), price); // always use latest price for that hour
-          });
+      if (!res.ok) {
+        if (res.status === 429) {
+          setIsRateLimited(true);
+          return;
+        }
+        throw new Error("Failed to fetch chart data");
+      }
 
-          // Sort hours ascending
-          const sortedHours = Array.from(hourlyMap.keys())
-            .map(Number)
-            .sort((a, b) => a - b);
+      const data: MarketChartResponse = await res.json();
 
-          const labels = sortedHours.map((h) => {
-            const date = new Date();
-            date.setHours(h, 0, 0, 0);
-            return date.toLocaleTimeString([], {
-              hour: "numeric",
-              hour12: true,
-            });
-          });
+      if (data?.prices?.length > 0) {
+        // Limit chart points to 1 per hour
+        const hourlyMap = new Map<string, number>();
+        data.prices.forEach(([timestamp, price]) => {
+          const date = new Date(timestamp);
+          const hour = date.getHours();
+          hourlyMap.set(hour.toString(), price); // always use latest price for that hour
+        });
 
-          const values = sortedHours.map((h) => hourlyMap.get(h.toString())!);
+        // Sort hours ascending
+        const sortedHours = Array.from(hourlyMap.keys())
+          .map(Number)
+          .sort((a, b) => a - b);
 
-          // Ensure latest hour shows current price
-          const currentHourLabel = new Date().toLocaleTimeString([], {
+        const labels = sortedHours.map((h) => {
+          const date = new Date();
+          date.setHours(h, 0, 0, 0);
+          return date.toLocaleTimeString([], {
             hour: "numeric",
             hour12: true,
           });
-          if (labels[labels.length - 1] !== currentHourLabel) {
-            labels.push(currentHourLabel);
-            values.push(currentPrice);
-          } else {
-            values[values.length - 1] = currentPrice;
-          }
+        });
 
-          const chart: ChartData<"line"> = {
-            labels,
-            datasets: [
-              {
-                label: "Price (USD)",
-                data: values,
-                borderColor: "#4ade80",
-                backgroundColor: "rgba(74, 222, 128, 0.2)",
-                tension: 0.3,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                fill: true,
-              },
-            ],
-          };
+        const values = sortedHours.map((h) => hourlyMap.get(h.toString())!);
 
-          setChartData(chart);
+        // Ensure latest hour shows current price
+        const currentHourLabel = new Date().toLocaleTimeString([], {
+          hour: "numeric",
+          hour12: true,
+        });
+        if (labels[labels.length - 1] !== currentHourLabel) {
+          labels.push(currentHourLabel);
+          values.push(currentPrice);
+        } else {
+          values[values.length - 1] = currentPrice;
         }
-      } catch (err) {
-        console.error("Failed to fetch chart data", err);
-      }
-    };
 
+        const chart: ChartData<"line"> = {
+          labels,
+          datasets: [
+            {
+              label: "Price (USD)",
+              data: values,
+              borderColor: "#4ade80",
+              backgroundColor: "rgba(74, 222, 128, 0.2)",
+              tension: 0.3,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              fill: true,
+            },
+          ],
+        };
+
+        setChartData(chart);
+      }
+    } catch (err) {
+      console.error("Failed to fetch chart data", err);
+    }
+  };
+
+  useEffect(() => {
     fetchChartData();
   }, [coinId, currentPrice, currency]);
 
@@ -115,7 +127,7 @@ const PriceChart = ({
       legend: { display: false },
       title: {
         display: true,
-        text: `Hourly Price Chart (Updated: ${new Date().toLocaleTimeString()})`,
+        text: "24 Hour Price Chart",
         color: isDarkMode ? "#fff" : "#111827",
         font: { size: 14 },
         padding: { bottom: 15 },
@@ -128,7 +140,7 @@ const PriceChart = ({
         bodyColor: isDarkMode ? "#d1d5db" : "#4b5563",
         displayColors: false,
         callbacks: {
-          label: (context) =>
+          label: (context: { parsed: { y: number } }) =>
             new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: "USD",
@@ -147,7 +159,7 @@ const PriceChart = ({
       y: {
         ticks: {
           color: isDarkMode ? "#9ca3af" : "#6b7280",
-          callback: (value) => {
+          callback: (value: number | string) => {
             const num = Number(value);
             if (num >= 1000) return `$${(num / 1000).toFixed(1)}k`;
             return `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
@@ -160,10 +172,38 @@ const PriceChart = ({
     },
   };
 
+  const handleRefresh = async () => {
+    if (isRefreshCooldown) return;
+
+    setIsRefreshCooldown(true);
+    setTimeout(() => {
+      setIsRefreshCooldown(false);
+    }, 60000); // 1 minute cooldown
+
+    await fetchChartData();
+  };
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="min-h-[250px] flex-1 md:h-[40vh]">
-        {chartData ? (
+        {isRateLimited ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4">
+            <p className="text-center text-gray-400">
+              Rate limit reached. Please wait a moment before trying again.
+            </p>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshCooldown}
+              className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-all ${
+                isRefreshCooldown
+                  ? "cursor-not-allowed bg-gray-400"
+                  : "bg-green-500 hover:bg-green-600"
+              }`}
+            >
+              {isRefreshCooldown ? "Please wait (1 min)" : "Refresh"}
+            </button>
+          </div>
+        ) : chartData ? (
           <Line data={chartData} options={options} />
         ) : (
           <p className="text-center text-gray-400">Loading chart...</p>

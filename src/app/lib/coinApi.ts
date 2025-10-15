@@ -80,6 +80,27 @@ const makeAPICall = async <T>(
   throw new Error("Failed to make API call after retries.");
 };
 
+// Fetch historical price data
+export const getHistoricalPriceData = async (
+  coinId: string,
+  days = 1,
+): Promise<{ prices: [number, number][] }> => {
+  try {
+    return await makeAPICall<{ prices: [number, number][] }>(
+      `/coins/${coinId}/market_chart`,
+      {
+        vs_currency: "usd",
+        days,
+        interval: days === 1 ? "hourly" : "daily",
+      },
+    );
+  } catch (error) {
+    // Return empty prices array instead of throwing to avoid error boundary
+    console.warn("Failed to fetch historical data, using fallback");
+    return { prices: [] };
+  }
+};
+
 // Fetch market data for all coins
 export const getCoinsMarkets = async (
   page = 1,
@@ -92,6 +113,39 @@ export const getCoinsMarkets = async (
     page,
     sparkline: false,
   });
+};
+
+// Fetch multiple coins by ids (batched). Uses /coins/markets with ids param.
+export const getCoinsByIds = async (ids: string[]): Promise<Coin[]> => {
+  if (!ids || ids.length === 0) return [];
+
+  const batchSize = 100; // safe batch size
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    batches.push(ids.slice(i, i + batchSize));
+  }
+
+  const results: Coin[] = [];
+  for (const batch of batches) {
+    try {
+      const data = await makeAPICall<Coin[]>("/coins/markets", {
+        vs_currency: "usd",
+        ids: batch.join(","),
+        order: "market_cap_desc",
+        per_page: batch.length,
+        page: 1,
+        sparkline: false,
+      });
+      if (Array.isArray(data)) results.push(...data);
+    } catch (err) {
+      console.warn("Failed to fetch coins by ids for batch", batch, err);
+    }
+  }
+
+  // Deduplicate by id
+  const map = new Map<string, Coin>();
+  results.forEach((c) => map.set(c.id, c));
+  return Array.from(map.values());
 };
 
 // Fetch coins by category

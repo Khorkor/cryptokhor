@@ -1,12 +1,16 @@
 "use client";
 
+import 'react-toastify/dist/ReactToastify.css';
+
 import {
     CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip
 } from 'chart.js';
+import { RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 
 import { TableLoadingOverlay } from '@/app/components/CoinsTable/LoadingOverlay';
 import PriceChart from '@/app/components/PriceChart';
@@ -34,10 +38,31 @@ const DetailsPage = () => {
   const [chartData, setChartData] = useState<number[]>([]);
   const [chartLabels, setChartLabels] = useState<string[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
+  const [isRefreshingChart, setIsRefreshingChart] = useState(false);
+  const [lastChartRefreshTime, setLastChartRefreshTime] = useState<number>(0);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+
+  const CHART_COOLDOWN = 60 * 1000; // 1 minute
 
   useEffect(() => {
     setIsDarkMode(document.documentElement.classList.contains("dark"));
   }, []);
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const diff = Math.max(
+        0,
+        Math.ceil(
+          (CHART_COOLDOWN - (Date.now() - lastChartRefreshTime)) / 1000,
+        ),
+      );
+      setSecondsRemaining(diff);
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [lastChartRefreshTime, CHART_COOLDOWN]);
 
   useEffect(() => {
     if (!coinId) return;
@@ -75,10 +100,17 @@ const DetailsPage = () => {
   }, [coinId, coins]);
 
   const generateChart = (coinData: Coin) => {
-    fetch(
+    // Clear previous error when attempting
+    setChartError(null);
+
+    return fetch(
       `https://api.coingecko.com/api/v3/coins/${coinData.id}/market_chart?vs_currency=usd&days=1`,
     )
-      .then((res) => res.json())
+      .then((res) => {
+        // If CORS blocked or network-level failure, this block won't run; .catch handles it.
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        return res.json();
+      })
       .then((data: { prices: [number, number][] }) => {
         let prices: number[] = [];
         let labels: string[] = [];
@@ -120,6 +152,7 @@ const DetailsPage = () => {
 
         setChartData(prices);
         setChartLabels(labels);
+        setChartError(null);
       })
       .catch(() => {
         // fallback if API fails completely
@@ -135,6 +168,18 @@ const DetailsPage = () => {
         }
         setChartData(prices);
         setChartLabels(labels);
+        // If the fetch was blocked by CORS or rate limit, show an explicit error panel
+        setChartData([]);
+        setChartLabels([]);
+        setChartError(
+          "You reached the free-tier CoinGecko API limit. Please wait a few minutes and try again to load chart data.",
+        );
+        // start cooldown immediately when error occurs so user can't hammer refresh
+        setLastChartRefreshTime(Date.now());
+        // show transient toast instead of rethrowing to avoid Next.js overlay in dev
+        toast.warn(
+          "Chart data unavailable from CoinGecko (rate limit or CORS). Try again later.",
+        );
       });
   };
 
@@ -236,11 +281,57 @@ const DetailsPage = () => {
         </div>
 
         {/* Right Chart */}
-        <PriceChart
-          coinId={coin.id}
-          currentPrice={coin.current_price}
-          isDarkMode={isDarkMode}
-        />
+        <div className="flex h-full w-full items-center justify-center rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          {chartError ? (
+            <div className="flex w-full max-w-md flex-col items-center space-y-4 text-center">
+              <p className="text-sm text-red-500">{chartError}</p>
+              <p className="text-xs text-gray-500">
+                You can try refreshing the chart data manually. The refresh
+                button has a 1 minute cooldown.
+              </p>
+              <div>
+                <button
+                  onClick={async () => {
+                    if (isRefreshingChart) return;
+                    // enforce cooldown
+                    if (Date.now() - lastChartRefreshTime < CHART_COOLDOWN)
+                      return;
+                    setIsRefreshingChart(true);
+                    try {
+                      await generateChart(coin);
+                      setLastChartRefreshTime(Date.now());
+                    } catch {
+                      // keep error message
+                    } finally {
+                      setIsRefreshingChart(false);
+                    }
+                  }}
+                  disabled={secondsRemaining > 0}
+                  className={`flex h-9 items-center space-x-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    secondsRemaining > 0
+                      ? "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+                      : "bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                  } `}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isRefreshingChart ? "animate-spin" : ""}`}
+                  />
+                  <span>
+                    {secondsRemaining > 0
+                      ? `${Math.floor(secondsRemaining / 60)}:${(secondsRemaining % 60).toString().padStart(2, "0")}`
+                      : "Refresh chart"}
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <PriceChart
+              coinId={coin.id}
+              currentPrice={coin.current_price}
+              isDarkMode={isDarkMode}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
